@@ -70,7 +70,7 @@ console.log("Fetching " + reqUrl + " - core domain: " + coreDomain);
                     if (err) {
                         throw err;
                     }
-                    owner = printRow(row);
+                    owner = parseResult(row);
                     console.log(coreDomain + "\t" + domain + "\t" + url + "\t" + owner);
                 });
 
@@ -87,4 +87,10 @@ console.log("Fetching " + reqUrl + " - core domain: " + coreDomain);
     await browser.close();
 })();
 
-
+function parseResult(row) {
+    try {
+        return row.owner;
+    } catch (err) {
+        return 'no match';
+    }   
+}
