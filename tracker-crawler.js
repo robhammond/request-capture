@@ -8,13 +8,13 @@ const db = new sqlite3.Database('./domains.db', sqlite3.OPEN_READONLY, (err) => 
     }
 });
 const fs = require('fs');
-const tsv = './data/huffingtonpost.tsv';
+const tsv = './data/crawled-mirror.tsv';
 
-fs.writeFile(tsv, "Source\tSub-Domain\tURL\tDomain\tName\n", (err) => {  
+fs.writeFile(tsv, "Source\tSub-Domain\tURL\tDomain\tName\n", (err) => {
     if (err) throw err;
 });
 
-const reqUrl = 'http://www.huffingtonpost.co.uk/';
+const reqUrl = 'http://www.mirror.co.uk/';
 const coreDomain = reqUrl.match(/^https?:\/\/(?:www\.)?([^\/]+)/)[1];
 
 console.log("Fetching " + reqUrl + " - core domain: " + coreDomain);
@@ -29,7 +29,7 @@ console.log("Fetching " + reqUrl + " - core domain: " + coreDomain);
         let ignoreRE = new RegExp('^https?://([^/]+)?' + coreDomain + '/', 'i');
 
         const url = request.url;
-        
+
         let owner;
         let domain;
         let qDomain;
@@ -47,17 +47,17 @@ console.log("Fetching " + reqUrl + " - core domain: " + coreDomain);
                 } else {
                     qDomain = domain.match(/([^.]+\.(?:com|co\.uk|net|io|org|direct|tv|[tc]o|de))$/)[1];
                 }
-                
+
             } catch (err) {
                 console.log("ERROR: Can't match qDomain on " + url);
             }
-            
+
             if (!/^https?:\/\//i.test(request.url)) {
                 // do nothing (ie data:image)
             } else if (re1.test(request.url)) { // internal JS files
                 console.log(coreDomain + "\t" + domain + "\t" + url + "\t" + qDomain);
                 let output = coreDomain + "\t" + domain + "\t" + url + "\t" + qDomain + "\n";
-                fs.appendFile(tsv, output, (err) => {  
+                fs.appendFile(tsv, output, (err) => {
                     if (err) throw err;
                 });
             } else if (ignoreRE.test(request.url)) { // ignore other internal requests
@@ -70,8 +70,9 @@ console.log("Fetching " + reqUrl + " - core domain: " + coreDomain);
                         }
                         owner = parseResult(row);
                         console.log(coreDomain + "\t" + domain + "\t" + url + "\t" + qDomain + "\t" + owner);
+
                         let output = coreDomain + "\t" + domain + "\t" + url + "\t" + qDomain + "\t" + owner + "\n";
-                        fs.appendFile(tsv, output, (err) => {  
+                        fs.appendFile(tsv, output, (err) => {
                             if (err) throw err;
                         });
                     });
@@ -83,8 +84,35 @@ console.log("Fetching " + reqUrl + " - core domain: " + coreDomain);
         }
         request.continue();
     });
+    // page.on('response', response => {
+    //     console.log(response.url);
+    //     console.log(response.headers);
+    //     console.log(response.status);
+    // });
     await page.goto(reqUrl, { waitUntil: 'networkidle' });
+    
+
+    // (function() { 
+    //     var links = []; 
+    //     for (let a of document.querySelectorAll('a')) { 
+    //         if ((a.href != '') && (a.href != window.location)) { 
+    //             links.push(a.href); 
+    //         } 
+    //     } 
+    //     var rand = links[Math.floor(Math.random() * links.length)]; 
+    //     return JSON.stringify({ 'link': rand }); 
+    // }())
+
+    const links = await page.evaluate(() => {
+      const anchors = document.querySelectorAll('a');
+      return [].map.call(anchors, a => a.href);
+    });
+    console.log(links);
+    let rand = links[Math.floor(Math.random() * links.length)]; 
     await page.screenshot({ path: 'news.png', fullPage: true });
+    console.log("now getting " + rand);
+
+    await page.goto(rand, { waitUntil: 'networkidle' });
 
     await browser.close();
 })();
@@ -94,5 +122,5 @@ function parseResult(row) {
         return row.owner;
     } catch (err) {
         return 'no match';
-    }   
+    }
 }
